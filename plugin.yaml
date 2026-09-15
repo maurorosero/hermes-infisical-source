@@ -1,0 +1,5 @@
+name: infisical
+version: 1.0.0
+description: "Infisical secret source — pulls provider credentials from an Infisical project folder at startup via Universal Auth (Client ID + Client Secret). Bulk source: injects the whole configured folder (e.g. /ALAN-AI)."
+author: Alan Rosero One
+kind: backend

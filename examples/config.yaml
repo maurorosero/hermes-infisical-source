@@ -1,0 +1,14 @@
+# Configuración de ejemplo — copiar al config.yaml del perfil
+
+plugins:
+  enabled:
+    - infisical
+
+secrets:
+  infisical:
+    enabled: true
+    env: prod
+    folder: /ALAN-AI
+    project_id: 2465eb3c-841e-400b-947d-991ecfdc67bf
+    timeout: 30
+    fail_open: true
