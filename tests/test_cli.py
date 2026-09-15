@@ -86,6 +86,43 @@ def test_setup_missing_credentials_exits_1(cli, tmp_path, monkeypatch):
     assert cli.cmd_setup(args) == 1
 
 
+def test_setup_writes_config_even_when_login_fails(cli, tmp_path, monkeypatch):
+    """Setup must persist config (incl. path) even if credentials are
+    rejected — the wizard warns but does not block configuration."""
+    monkeypatch.setattr(cli, "CONFIG_PATH", tmp_path / "config.yaml")
+    monkeypatch.setattr(cli, "DEFAULT_HOME", tmp_path)
+    monkeypatch.setenv("INFISICAL_CLIENT_ID", "cid-x")
+    monkeypatch.setenv("INFISICAL_CLIENT_SECRET", "csec-x")
+    monkeypatch.setattr(cli, "_test_login", lambda *a, **k: (False, "HTTP 401"))
+    args = argparse.Namespace(
+        project_id="e9db622a", env="prod", path="/ANDREA-AI",
+        api_url="https://app.infisical.com",
+        client_id_env="INFISICAL_CLIENT_ID", client_secret_env="INFISICAL_CLIENT_SECRET",
+        dry_run=False,
+    )
+    assert cli.cmd_setup(args) == 0
+    written = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    assert "/ANDREA-AI" in written, "path must be persisted even on login failure"
+    assert "e9db622a" in written
+
+
+def test_status_shows_default_path_when_unset(cli, tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "CONFIG_PATH", tmp_path / "config.yaml")
+    config = {"secrets": {"infisical": {"enabled": True, "project_id": "x", "env": "prod"}}}
+    (tmp_path / "config.yaml").write_text(__import__("yaml").safe_dump(config), encoding="utf-8")
+    monkeypatch.setenv("INFISICAL_CLIENT_ID", "cid-x")
+    monkeypatch.setenv("INFISICAL_CLIENT_SECRET", "csec-x")
+    monkeypatch.setattr(cli, "_test_login", lambda *a, **k: (False, "HTTP 401"))
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert cli.cmd_status(argparse.Namespace()) == 1
+    out = buf.getvalue()
+    assert "path:" in out and "None" not in out, f"path should not print None: {out}"
+
+
 def test_setup_dry_run_writes_nothing_on_login_ok(cli, tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "CONFIG_PATH", tmp_path / "config.yaml")
     monkeypatch.setattr(cli, "DEFAULT_HOME", tmp_path)
