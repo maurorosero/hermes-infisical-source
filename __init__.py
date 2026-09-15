@@ -34,18 +34,31 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from agent.secret_sources._cache import (
-    CachedFetch,
-    DiskCache,
-    FetchResult,
-    is_valid_env_name,
-)
+# Import con fallback por símbolo — compatible con el core actual y la migración
+# post-2026-09-14. Superficie pública: base expone ErrorKind/FetchResult/SecretSource/
+# is_valid_env_name/run_secret_cli/get_source_environment. CachedFetch/DiskCache viven
+# hoy en agent.secret_sources._cache y se fusionarán a base (o al __init__ del paquete);
+# se resuelven con intento a base primero y fallback a _cache para ambas.
 from agent.secret_sources.base import (
     ErrorKind,
     SecretSource,
     get_source_environment,
     run_secret_cli,
 )
+try:
+    from agent.secret_sources.base import (
+        FetchResult,
+        is_valid_env_name,
+        CachedFetch,
+        DiskCache,
+    )
+except ImportError:  # pragma: no cover — core actual: caché aún en _cache
+    from agent.secret_sources._cache import (
+        CachedFetch,
+        DiskCache,
+        FetchResult,
+        is_valid_env_name,
+    )
 
 logger = logging.getLogger(__name__)
 
