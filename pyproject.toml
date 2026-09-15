@@ -23,3 +23,6 @@ infisical-ls = "hermes_infisical:main_cli"
 
 [tool.setuptools]
 py-modules = ["__init__"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

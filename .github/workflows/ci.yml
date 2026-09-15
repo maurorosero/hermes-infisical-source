@@ -18,7 +18,7 @@ jobs:
           cache: pip
 
       - name: Dependencias de test
-        run: pip install pytest
+        run: pip install pytest pyyaml
 
       - name: Checkout fuente de Hermes (provee el paquete agent + el kit de conformance)
         run: git clone --depth 1 https://github.com/NousResearch/hermes-agent /tmp/hermes-src
