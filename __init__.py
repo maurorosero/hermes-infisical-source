@@ -526,3 +526,18 @@ def _classify_error(message: str) -> ErrorKind:
 
 def register(ctx):
     ctx.register_secret_source(InfisicalSource())
+    # CLI helpers (hermes infisical setup|status). Import local: cli.py importa
+    # símbolos de este módulo; diferir evita el ciclo de import en el loader.
+    from .cli import infisical_command, register_cli
+
+    ctx.register_cli_command(
+        name="infisical",
+        help="Infisical secret-source setup & diagnostics",
+        setup_fn=register_cli,
+        handler_fn=infisical_command,
+        description=(
+            "Setup and diagnostics for the Infisical secret source: "
+            "validate credentials (Universal Auth), write secrets.infisical "
+            "to config.yaml, and probe the configured login."
+        ),
+    )
