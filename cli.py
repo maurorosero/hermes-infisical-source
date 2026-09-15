@@ -114,9 +114,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     api_url = (args.api_url or _DEFAULT_API_URL).strip()
 
     ok, detail = _test_login(client_id, client_secret, api_url)
-    if not ok:
-        print(f"[infisical] credentials rejected: {detail}")
-        return 1
+    login_note = "" if ok else f"  ⚠ credentials rejected: {detail}"
 
     if args.dry_run:
         print("[infisical] dry-run: config would be:")
@@ -126,10 +124,13 @@ def cmd_setup(args: argparse.Namespace) -> int:
         print(f"  secrets.infisical.path: {path}")
         print(f"  secrets.infisical.client_id_env: {client_id_env}")
         print(f"  secrets.infisical.client_secret_env: {client_secret_env}")
-        print("[infisical] login OK — nothing written (--dry-run)")
+        if login_note:
+            print(login_note)
+        else:
+            print("[infisical] login OK — nothing written (--dry-run)")
         return 0
 
-    config = _read_config()
+    config = _read_config(CONFIG_PATH)
     config.setdefault("secrets", {})["infisical"] = {
         "enabled": True,
         "project_id": project_id,
@@ -138,14 +139,18 @@ def cmd_setup(args: argparse.Namespace) -> int:
         "client_id_env": client_id_env,
         "client_secret_env": client_secret_env,
     }
-    _write_config(config)
+    _write_config(config, CONFIG_PATH)
     print(f"[infisical] wrote secrets.infisical to {CONFIG_PATH}")
+    if login_note:
+        print(login_note)
+        print("[infisical] config saved; credentials still need fixing — rotate the Client Secret in the")
+        print("[infisical] Infisical console (Access Control → Identities → your Machine Identity).")
     print("[infisical] done — restart the gateway to load the new secret source.")
     return 0
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    config = _read_config()
+    config = _read_config(CONFIG_PATH)
     section = _current_section(config)
     source = dict(os.environ)
 
@@ -164,7 +169,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"  enabled:      {section.get('enabled')}")
     print(f"  project_id:   {section.get('project_id')}")
     print(f"  env:          {section.get('env')}")
-    print(f"  path:         {section.get('path')}")
+    print(f"  path:         {section.get('path') or '/'}")
     print(f"  client_id_env: {client_id_env} -> {'set' if client_id else 'MISSING'}")
     print(f"  client_secret_env: {client_secret_env} -> {'set' if client_secret else 'MISSING'}")
 
