@@ -18,7 +18,7 @@ main (PROTEGIDA — no se pushea directo)
 1. **Todo cambio entra por PR a `main`.** Push directo a main está bloqueado (branch protection + enforce_admins).
 2. **Ramas cortas** `feature/<descripcion>` desde main al día (`git pull` antes de ramificar).
 3. **CI obligatorio**: conformance kit (10 tests) debe pasar; si está rojo, no se mergea.
-4. **1 review aprobado** por persona/agente distinta del autor — **nadie valida su propio trabajo**.
+4. **Revisión recomendada (no bloqueante)**: repo personal de mantenedor único — GitHub no permite que el autor apruebe su propio PR; con 1 cuenta con write access la review dura es inviable. La revisión cruzada se activa cuando existan 2+ colaboradores con write.
 5. **Squash on merge** — historial limpio, 1 commit por PR.
 6. **Conventional Commits**: `feat:`, `fix:`, `docs:`, `ci:`, `refactor:` + descripción corta.
 7. **Commits firmados** (GPG/SSH) cuando el entorno del agente lo soporte.

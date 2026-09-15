@@ -39,7 +39,7 @@ git push -u origin feature/mi-cambio
 
 1. **Nunca se pushea directo a `main`** — solo PRs.
 2. **CI debe pasar** — conformance kit (10 tests) corre en cada PR. Rojo = no se mergea.
-3. **Una revisión aprobada** — el autor no se auto-aprueba (nadie valida su propio trabajo).
+3. **Revisión recomendada (no bloqueante)** — repos personal de mantenedor único: el autor no se auto-aprueba y GitHub no permite review del propio PR; la revisión es buena práctica cuando haya 2+ colaboradores. Con 1 mantenedor, el merge exige solo CI verde.
 4. **Ramas cortas** (`feature/...`) — se borran tras el merge.
 5. **Commit firma GPG/SSH** — se prefiere firma (el repo usa commits firmados).
 6. **Conventional Commits** — `feat:`, `fix:`, `docs:`, `ci:`, `refactor:` + descripción corta.
