@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  conformance:
+    name: Conformance kit (secret source contract)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Dependencias de test
+        run: pip install pytest
+
+      - name: Checkout fuente de Hermes (provee el paquete agent + el kit de conformance)
+        run: git clone --depth 1 https://github.com/NousResearch/hermes-agent /tmp/hermes-src
+
+      - name: Ejecutar conformance
+        run: PYTHONPATH=/tmp/hermes-src pytest tests/ -v
