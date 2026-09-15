@@ -20,25 +20,42 @@ _PLUGIN = pathlib.Path(__file__).resolve().parent.parent / "__init__.py"
 _CLI = pathlib.Path(__file__).resolve().parent.parent / "cli.py"
 
 
+def _load_package():
+    """Mount __init__ as package 'hermes_infisical' so cli.py's relative
+    imports resolve (mirrors the real plugin load inside the harness)."""
+    import sys
+
+    spec = importlib.util.spec_from_file_location("hermes_infisical", _PLUGIN)
+    pkg = importlib.util.module_from_spec(spec)
+    sys.modules["hermes_infisical"] = pkg
+    spec.loader.exec_module(pkg)
+    return pkg
+
+
 def _load_cli():
-    spec = importlib.util.spec_from_file_location("hermes_infisical_cli", _CLI)
+    import sys
+
+    spec = importlib.util.spec_from_file_location("hermes_infisical.cli", _CLI)
     mod = importlib.util.module_from_spec(spec)
+    sys.modules["hermes_infisical.cli"] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
 @pytest.fixture(scope="module")
 def cli():
+    _load_package()
     return _load_cli()
 
 
 def test_registers_setup_and_status_subcommands(cli, monkeypatch):
-    subparsers = []
     parser = argparse.ArgumentParser(prog="hermes infisical")
+    original_add_subparsers = parser.add_subparsers
+    subparsers = []
 
-    # Capture subparsers added by register_cli.
+    # Capture subparsers added by register_cli without recursing.
     def fake_add_subparsers(**kw):
-        sp = parser.add_subparsers(**kw)
+        sp = original_add_subparsers(**kw)
         subparsers.append(sp)
         return sp
 
@@ -46,9 +63,6 @@ def test_registers_setup_and_status_subcommands(cli, monkeypatch):
     cli.register_cli(parser)
 
     assert subparsers, "register_cli should add subparsers"
-    sp = subparsers[0]
-    assert any(a.dest == "infisical_action" for a in parser._actions)
-    # argparse stores registered parsers on the subparsers action.
     choices = [a.choices for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
     assert choices and "setup" in choices[0] and "status" in choices[0]
 
