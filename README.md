@@ -78,6 +78,32 @@ infisical-ls
 - Usa `run_secret_cli` (helper del core) con `allow_env` restringido — no pasa el entorno completo al CLI.
 - Compatibilidad: usa `agent.secret_sources._cache` (módulo interno del core) — mantenlo al día con la versión del harness instalado.
 
+## Gate de secretos
+
+Este repo trae un guardrail local que **frena un secreto antes de que llegue al remoto**.
+Son dos archivos versionados —`.pre-commit-config.yaml` y `.gitleaks.toml`— más un
+`.gitignore` con la sección de secretos en claro.
+
+**Después de clonar, hay que activarlo. Los hooks no se versionan: viven en `.git/hooks/`.**
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+Qué hace cada punto de intercepción:
+
+- **`pre-commit`** — linters sobre lo que se está por commitear.
+- **`pre-push`** — `gitleaks` sobre el **rango `origin/main..HEAD`**. Es la barrera real:
+  un secreto commiteado y después borrado igual viaja en el historial, así que mirar el
+  working tree no lo vería; mirar el rango de commits, sí.
+
+Los secretos viven en **Infisical**, no en los archivos. El escáner es la red por si alguien
+se equivoca, no el método. La única excepción son los archivos cifrados con SOPS
+(`*.sops.yaml`, `*.sops.yml`, `*.sops.json`): se versionan a propósito y no se ignoran.
+
+Y el límite honesto: GitHub no bloquea el push en repos privados sin plan pago, y una Action
+corre **después** del push. Toda la eficacia está en el hook local, de ahí el `pre-commit install`.
+
 ## Licencia
 
 MIT. Ver `LICENSE`.
