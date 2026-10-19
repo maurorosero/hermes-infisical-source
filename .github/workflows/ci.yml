@@ -18,7 +18,9 @@ jobs:
           cache: pip
 
       - name: Dependencias de test
-        run: pip install pytest pyyaml
+        # ruamel.yaml lo importa el core de Hermes (utils.py -> hermes_yaml.py) desde
+        # que migro a round-trip; sin el, la conformance no llega ni a colectar.
+        run: pip install pytest pyyaml ruamel.yaml
 
       - name: Checkout fuente de Hermes (provee el paquete agent + el kit de conformance)
         run: git clone --depth 1 https://github.com/NousResearch/hermes-agent /tmp/hermes-src
