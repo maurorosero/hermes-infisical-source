@@ -10,6 +10,16 @@ Plugin de **secret source** para [Hermes Agent](https://hermes-agent.nousresearc
 - CLI de Infisical (`infisical`) en el PATH
 - Cuenta/proyecto Infisical con Universal Auth habilitado
 - Python 3.11+
+- **PyYAML** (`yaml`) — la usa `cli.py` para leer y escribir `config.yaml`
+
+> PyYAML está declarada en `pyproject.toml`, así que `hermes plugins install`
+> y `hermes plugins enable` la resuelven en el entorno del agente. Si instalás
+> copiando los archivos a mano, instalala vos: `pip install "PyYAML>=6.0"`.
+>
+> Sin ella el plugin se instala igual y **muere al cargar** con
+> `No module named 'yaml'`. Como no carga, no se aplican los secretos y el error
+> que se ve habla de otra cosa —el proveedor del modelo se queda sin credencial
+> (*"Set OLLAMA_API_KEY"*)—, así que conviene revisar esta dependencia primero.
 
 ## Instalación
 
