@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-infisical-source"
-version = "0.1.0"
+version = "0.1.1"
 description = "Infisical secret source plugin for Hermes Agent — resolves provider credentials from an Infisical project folder at startup via Universal Auth."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,7 +16,14 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: System :: Systems Administration",
 ]
-dependencies = []
+# cli.py importa yaml para leer y escribir config.yaml. Cuando no está declarado,
+# el plugin se instala igual y muere al cargar con "No module named yaml": no se
+# aplican los secretos de Infisical, el proveedor del modelo se queda sin
+# credencial y el error que se ve habla de la API key, no de la dependencia.
+# Declararlo hace que pm lo resuelva en el entorno del agente al habilitar el plugin.
+dependencies = [
+    "PyYAML>=6.0",
+]
 
 [project.scripts]
 infisical-ls = "hermes_infisical:main_cli"
