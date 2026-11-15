@@ -33,7 +33,6 @@ TREE="$AGENT_HOME/hermes-agent"
 SOURCES="$TREE/agent/secret_sources"
 DEST="$SOURCES/infisical.py"
 REGISTRY="$SOURCES/registry.py"
-LINEA='    ("agent.secret_sources.infisical", "InfisicalSource", "Infisical"),'
 PLUGIN_ORIGEN="maurorosero/hermes-infisical-source"
 
 MODO=aplicar
