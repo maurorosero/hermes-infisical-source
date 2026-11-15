@@ -37,6 +37,11 @@ LINEA='    ("agent.secret_sources.infisical", "InfisicalSource", "Infisical"),'
 PLUGIN_ORIGEN="maurorosero/hermes-infisical-source"
 
 MODO=aplicar
+FALLAS=0
+# `hermes` vive en ~/.local/bin en las instalaciones nativas; sin esto el script no lo
+# encuentra cuando corre desde un cron o un ssh sin perfil cargado.
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH" ;; esac
+export PATH
 DEEP=false
 for a in "$@"; do
   case "$a" in
@@ -72,16 +77,26 @@ echo
 
 # --- 1) El plugin recortado, por la vía de Hermes -----------------------------
 echo "1 · plugin (el CLI setup|status)"
-# Se captura la salida en vez de encadenar con grep: `hermes plugins list` puede salir
-# distinto de cero por un aviso de dependencias, y con `pipefail` eso haría fallar el
-# pipe aunque el plugin esté listado.
-LISTADO_PLUGINS=$(hermes plugins list 2>/dev/null || true)
-if ! command -v hermes >/dev/null; then
-  aviso "sin hermes en PATH: se saltea el paso del plugin"
-elif printf '%s' "$LISTADO_PLUGINS" | grep -q 'infisical'; then
-  ok "ya instalado"
+# Chequeo por disco y no con `hermes plugins list`: ese comando tarda más de un minuto en
+# una máquina con dependencias desincronizadas, y lo único que hace falta saber es si el
+# plugin está en su carpeta y listado como habilitado.
+PLUGIN_DIR="$AGENT_HOME/plugins/infisical"
+HABILITADO=""
+[ -f "$AGENT_HOME/config.yaml" ] && HABILITADO=$(grep -A20 '^plugins:' "$AGENT_HOME/config.yaml" 2>/dev/null | grep -c '^\s*-\s*infisical\s*$' || true)
+if [ -f "$PLUGIN_DIR/plugin.yaml" ] && [ "${HABILITADO:-0}" -gt 0 ]; then
+  ok "instalado y habilitado en $PLUGIN_DIR"
+elif [ -f "$PLUGIN_DIR/plugin.yaml" ]; then
+  if [ "$MODO" = check ]; then
+    aviso "el plugin está en disco pero no figura habilitado (hermes plugins enable infisical)"
+    FALLAS=$((FALLAS + 1))
+  elif [ "$MODO" = revert ]; then
+    ok "no se toca el plugin en modo revert"
+  else
+    hermes plugins enable infisical >/dev/null 2>&1 && ok "habilitado" || aviso "no pude habilitarlo"
+  fi
 elif [ "$MODO" = check ]; then
   aviso "falta el plugin (hermes plugins install $PLUGIN_ORIGEN)"
+  FALLAS=$((FALLAS + 1))
 elif [ "$MODO" = revert ]; then
   ok "no se toca el plugin en modo revert"
 else
@@ -113,6 +128,7 @@ if [ -f "$DEST" ] && cmp -s "$NUEVO" "$DEST"; then
   ok "ya está puesto y al día ($(wc -l < "$DEST") líneas)"
 elif [ "$MODO" = check ]; then
   [ -f "$DEST" ] && aviso "está desactualizado respecto del repo" || aviso "falta $DEST"
+  FALLAS=$((FALLAS + 1))
 elif [ "$MODO" = revert ]; then
   rm -f "$DEST" && ok "source quitado del árbol"
 else
@@ -127,6 +143,7 @@ if grep -qF 'agent.secret_sources.infisical' "$REGISTRY"; then
   ok "la entrada ya está"
 elif [ "$MODO" = check ]; then
   aviso "falta la entrada (el source no se registraría)"
+  FALLAS=$((FALLAS + 1))
 elif [ "$MODO" = revert ]; then
   "$PY" - "$REGISTRY" <<'PY'
 import pathlib, sys
@@ -181,8 +198,12 @@ if $DEEP; then
 fi
 
 echo
+if [ "$FALLAS" -gt 0 ]; then
+  printf '  --check: %s cosa(s) por resolver. No se escribió nada.\n' "$FALLAS"
+  exit 1
+fi
 case "$MODO" in
-  check)  echo "  --check: no se escribió nada. Sin fallas." ;;
+  check)  echo "  --check: no se escribió nada. Todo en su lugar." ;;
   revert) echo "  patch quitado. El plugin sigue instalado (comandos del CLI)." ;;
   *)      echo "  listo. Recordá: el próximo 'hermes update' borra el patch — volvé a correr este script." ;;
 esac
