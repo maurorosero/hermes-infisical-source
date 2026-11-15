@@ -32,7 +32,11 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+
+from agent.secret_sources._cache import (
+    CachedFetch,
+    DiskCache,
+)
 
 # Imports compatibles con la migración post-2026-09-14:
 # - base expone la superficie pública (FetchResult, is_valid_env_name, ErrorKind,
@@ -47,10 +51,6 @@ from agent.secret_sources.base import (
     get_source_environment,
     is_valid_env_name,
     run_secret_cli,
-)
-from agent.secret_sources._cache import (
-    CachedFetch,
-    DiskCache,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,8 +89,8 @@ _INFISICAL_ENV_ALLOWLIST = (
 # ---------------------------------------------------------------------------
 
 # In-process cache keyed by (auth_fp, project, env, path, refs_fp).
-_CacheKey = Tuple[str, str, str, str, str]
-_CACHE: Dict[_CacheKey, CachedFetch] = {}
+_CacheKey = tuple[str, str, str, str, str]
+_CACHE: dict[_CacheKey, CachedFetch] = {}
 
 _DISK_CACHE_BASENAME = "infisical_cache.json"
 
@@ -100,9 +100,7 @@ def _disk_key_str(cache_key: _CacheKey) -> str:
     return f"{auth_fp}|{project}|{env}|{path}|{refs_fp}"
 
 
-_DISK_CACHE: DiskCache = DiskCache(
-    _DISK_CACHE_BASENAME, key_serializer=_disk_key_str
-)
+_DISK_CACHE: DiskCache = DiskCache(_DISK_CACHE_BASENAME, key_serializer=_disk_key_str)
 
 
 def _auth_fingerprint(client_id: str, client_secret: str) -> str:
@@ -129,9 +127,9 @@ def _universal_auth_login(
     response). The token is returned as a string.
     """
     url = f"{api_url.rstrip('/')}/api/v1/auth/universal-auth/login"
-    body = json.dumps(
-        {"clientId": client_id, "clientSecret": client_secret}
-    ).encode("utf-8")
+    body = json.dumps({"clientId": client_id, "clientSecret": client_secret}).encode(
+        "utf-8"
+    )
     req = urllib.request.Request(
         url,
         data=body,
@@ -163,7 +161,7 @@ def _universal_auth_login(
 # ---------------------------------------------------------------------------
 
 
-def _find_infisical(binary_path: str = "") -> Optional[Path]:
+def _find_infisical(binary_path: str = "") -> Path | None:
     """Resolve a usable ``infisical`` binary, or None."""
     if binary_path:
         pinned = Path(binary_path)
@@ -187,20 +185,24 @@ def _export_folder(
 
     Raises RuntimeError on any failure.
     """
-    cmd: List[str] = [
+    cmd: list[str] = [
         str(infisical),
         "export",
-        "--projectId", project_id,
-        "--env", env,
-        "--format", "dotenv",
-        "--token", access_token,
+        "--projectId",
+        project_id,
+        "--env",
+        env,
+        "--format",
+        "dotenv",
+        "--token",
+        access_token,
     ]
     if path:
         cmd += ["--path", path]
 
     # Minimal allowlisted child env; the token is passed as an argv flag by
     # the CLI itself, not via the environment.
-    child_env: Dict[str, str] = {}
+    child_env: dict[str, str] = {}
     source_env = get_source_environment()
     for key in _INFISICAL_ENV_ALLOWLIST:
         val = source_env.get(key)
@@ -219,20 +221,18 @@ def _export_folder(
 
     if proc.returncode != 0:
         err = (proc.stderr or "").strip()[:300]
-        raise RuntimeError(
-            f"infisical export exited {proc.returncode}: {err}"
-        )
+        raise RuntimeError(f"infisical export exited {proc.returncode}: {err}")
     return proc.stdout or ""
 
 
-def _parse_dotenv(text: str) -> Dict[str, str]:
+def _parse_dotenv(text: str) -> dict[str, str]:
     """Parse a dotenv blob into a {ENV_VAR: value} map.
 
     Handles ``KEY=value`` lines, optional surrounding quotes, and skips
     comments/blank lines. Values that are empty or whitespace-only are
     dropped (applying them would clobber a good credential with nothing).
     """
-    secrets: Dict[str, str] = {}
+    secrets: dict[str, str] = {}
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -266,19 +266,19 @@ def fetch_infisical_secrets(
     env: str,
     path: str,
     api_url: str = _DEFAULT_API_URL,
-    binary: Optional[Path] = None,
+    binary: Path | None = None,
     binary_path: str = "",
     use_cache: bool = True,
     cache_ttl_seconds: float = 300,
-    home_path: Optional[Path] = None,
-) -> Tuple[Dict[str, str], List[str]]:
+    home_path: Path | None = None,
+) -> tuple[dict[str, str], list[str]]:
     """Resolve the folder's secrets to ``(secrets, warnings)``.
 
     Raises RuntimeError only when no ``infisical`` binary is available (a
     fatal "can't fetch anything" condition). Other failures are collected as
     warnings and the fetch returns empty.
     """
-    warnings: List[str] = []
+    warnings: list[str] = []
     cache_key: _CacheKey = (
         _auth_fingerprint(client_id, client_secret),
         project_id,
@@ -305,9 +305,7 @@ def fetch_infisical_secrets(
         )
 
     try:
-        access_token = _universal_auth_login(
-            client_id, client_secret, api_url=api_url
-        )
+        access_token = _universal_auth_login(client_id, client_secret, api_url=api_url)
     except RuntimeError as exc:
         warnings.append(str(exc))
         return {}, warnings
@@ -346,6 +344,14 @@ class InfisicalSource(SecretSource):
     name = "infisical"
     label = "Infisical"
     shape = "bulk"
+    # Declarados para quedar igual que los sources oficiales (1Password, Bitwarden) y
+    # que el core pueda leerlos sin ejecutar código: `scheme` es lo que usa el registry
+    # para detectar que dos fuentes no reclamen el mismo esquema, y `token_env_key` /
+    # `default_token_env` dicen cuál es el token de la propia bóveda. La protección ya
+    # la hace `protected_env_vars()` más abajo; esto la hace visible al registro.
+    scheme = "infisical"
+    token_env_key = "client_secret_env"
+    default_token_env = _DEFAULT_CLIENT_SECRET_ENV
 
     def override_existing(self, cfg: dict) -> bool:
         # Default True: a central vault is the rotation authority, so its
@@ -356,9 +362,7 @@ class InfisicalSource(SecretSource):
     def protected_env_vars(self, cfg: dict):
         client_secret_env = _DEFAULT_CLIENT_SECRET_ENV
         if isinstance(cfg, dict):
-            client_secret_env = str(
-                cfg.get("client_secret_env") or client_secret_env
-            )
+            client_secret_env = str(cfg.get("client_secret_env") or client_secret_env)
         return frozenset({client_secret_env})
 
     def config_schema(self) -> dict:
@@ -419,9 +423,7 @@ class InfisicalSource(SecretSource):
         path = str(cfg.get("path") or "/").strip() or "/"
         api_url = str(cfg.get("api_url") or _DEFAULT_API_URL).strip()
 
-        client_id_env = str(
-            cfg.get("client_id_env") or _DEFAULT_CLIENT_ID_ENV
-        )
+        client_id_env = str(cfg.get("client_id_env") or _DEFAULT_CLIENT_ID_ENV)
         client_secret_env = str(
             cfg.get("client_secret_env") or _DEFAULT_CLIENT_SECRET_ENV
         )
@@ -504,17 +506,31 @@ def _classify_error(message: str) -> ErrorKind:
     lowered = message.lower()
     if "timed out" in lowered:
         return ErrorKind.TIMEOUT
-    if "not found on path" in lowered or "not an executable" in lowered \
-            or "failed to invoke" in lowered:
+    if (
+        "not found on path" in lowered
+        or "not an executable" in lowered
+        or "failed to invoke" in lowered
+    ):
         return ErrorKind.BINARY_MISSING
-    if any(tok in lowered for tok in ("unauthorized", "not signed in",
-                                      "session expired", "authentication",
-                                      "401", "403", "invalid client")):
+    if any(
+        tok in lowered
+        for tok in (
+            "unauthorized",
+            "not signed in",
+            "session expired",
+            "authentication",
+            "401",
+            "403",
+            "invalid client",
+        )
+    ):
         return ErrorKind.AUTH_FAILED
     if "empty value" in lowered:
         return ErrorKind.EMPTY_VALUE
-    if any(tok in lowered for tok in ("network", "connection", "resolve host",
-                                      "dns", "urlopen")):
+    if any(
+        tok in lowered
+        for tok in ("network", "connection", "resolve host", "dns", "urlopen")
+    ):
         return ErrorKind.NETWORK
     return ErrorKind.INTERNAL
 
@@ -525,7 +541,12 @@ def _classify_error(message: str) -> ErrorKind:
 
 
 def register(ctx):
-    ctx.register_secret_source(InfisicalSource())
+    # El registro del SECRET SOURCE no vive acá: lo hace el core. Este repo se instala
+    # junto con un patch que agrega `InfisicalSource` a `_BUILTIN_SOURCES`, porque un
+    # plugin se carga DESPUÉS de que Hermes valida credenciales (el doctor mira en la
+    # sección 7, los plugins cargan en la 18) y sus secretos no llegarían a tiempo.
+    # Acá queda sólo lo que el patch no puede dar: los comandos del CLI.
+    #
     # CLI helpers (hermes infisical setup|status). Import local: cli.py importa
     # símbolos de este módulo; diferir evita el ciclo de import en el loader.
     from .cli import infisical_command, register_cli

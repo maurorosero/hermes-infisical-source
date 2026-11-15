@@ -23,13 +23,36 @@ Plugin de **secret source** para [Hermes Agent](https://hermes-agent.nousresearc
 
 ## Instalación
 
-### Como plugin de Hermes (la vía recomendada para agentes)
+### La vía completa: `install.sh` (plugin **y** patch)
+
+```bash
+git clone https://github.com/maurorosero/hermes-infisical-source ~/.hermes/plugins/infisical
+cd ~/.hermes/plugins/infisical
+bash install.sh --check    # informa, no escribe nada
+bash install.sh            # instala el plugin y aplica el patch
+```
+
+`install.sh` hace tres cosas, y las tres son idempotentes:
+
+1. instala o deja instalado el **plugin** (que aporta `hermes infisical setup` y `hermes infisical status`);
+2. deriva `InfisicalSource` desde este `__init__.py` y lo escribe en el árbol de Hermes, en `agent/secret_sources/infisical.py`;
+3. agrega la entrada `("agent.secret_sources.infisical", "InfisicalSource", "Infisical")` a `_BUILTIN_SOURCES` del core.
+
+**Por qué el patch, y no sólo el plugin.** Hermes valida las credenciales del modelo antes de cargar los plugins: en `hermes doctor` esa validación es la sección 7 y los plugins recién cargan en la 18. Un secret source que vive como plugin aplica sus secretos **después** de esa mirada, así que el `doctor` reporta que el proveedor no tiene credencial aunque la bóveda esté perfecta. Las fuentes incluidas del core —Bitwarden, 1Password, `command`— no sufren eso porque el core las registra en el acto, sin depender del cargador de plugins. El patch le da a Infisical ese mismo trato; el plugin se queda con lo que el patch no puede dar, que es el CLI.
+
+**El patch no sobrevive a `hermes update`.** El actualizador hace `stash push` y `reset --hard` sobre el árbol, así que la entrada de `_BUILTIN_SOURCES` se revierte. Después de cada actualización hay que volver a correr `bash install.sh`; el archivo del source sobrevive (no está versionado), la entrada no.
+
+Para deshacerlo: `bash install.sh --revert` saca el patch del core y deja el plugin instalado.
+
+### Sólo el plugin (sin el patch)
 
 ```bash
 hermes plugins install maurorosero/hermes-infisical-source
 ```
 
 > Portable packages se instalan deshabilitados — habilítalo después con `hermes plugins enable infisical`.
+
+Así funciona como cualquier plugin: resuelve los secretos para el agente y para los scripts, pero el `doctor` no los verá, por la razón de arriba.
 
 ### Manual (cualquier perfil/agente: Andrea, Alan, etc.)
 
