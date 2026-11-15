@@ -66,6 +66,32 @@ _DEFAULT_API_URL = "https://app.infisical.com"
 _DEFAULT_CLIENT_ID_ENV = "INFISICAL_CLIENT_ID"
 _DEFAULT_CLIENT_SECRET_ENV = "INFISICAL_CLIENT_SECRET"
 
+# El proyecto, el entorno y la ruta pueden vivir en el .env del scope administrado:
+# así cada perfil sólo declara `enabled: true` y todo lo demás se resuelve en un
+# único lugar (/etc/hermes), sin replicar identificadores en cada config.yaml.
+_SCOPE_PROJECT_ID_ENV = "INFISICAL_PROJECT_ID"
+_SCOPE_ENV_ENV = "INFISICAL_ENV"
+_SCOPE_PATH_ENV = "INFISICAL_PATH"
+
+
+def _managed_env() -> dict[str, str]:
+    """El ``.env`` del scope administrado (``/etc/hermes/.env``), o ``{}`` si no hay.
+
+    Por qué se lee acá en vez de esperar al loader: ``load_hermes_dotenv`` resuelve las
+    fuentes externas **antes** de cargar el ``.env`` gestionado, así que el bootstrap que
+    vive ahí —la única copia en la máquina— todavía no está en el entorno cuando este
+    source se autentica. Medido: el proceso del perfil tenía
+    ``INFISICAL_CLIENT_SECRET`` pero el source ya había fallado. Sin esto, un perfil cuyo
+    ``.env`` no lleva el bootstrap queda sin secretos aunque el scope exista y se lea.
+    """
+    try:
+        from hermes_cli.managed_scope import load_managed_env
+
+        return dict(load_managed_env() or {})
+    except Exception:  # noqa: BLE001 - fail-open, igual que el propio loader
+        return {}
+
+
 # How long to wait for a single `infisical export` call.
 _EXPORT_TIMEOUT = 30
 
@@ -410,17 +436,34 @@ class InfisicalSource(SecretSource):
         cfg = cfg if isinstance(cfg, dict) else {}
         result = FetchResult()
 
-        project_id = str(cfg.get("project_id") or "").strip()
+        # El scope administrado es la fuente única: un perfil puede declarar sólo
+        # `enabled: true` y el proyecto, el entorno y la ruta se leen de /etc/hermes.
+        managed: dict[str, str] | None = None
+
+        def _scoped(*keys: str) -> str:
+            nonlocal managed
+            if managed is None:
+                managed = _managed_env()
+            for key in keys:
+                value = str(managed.get(key, "") or "").strip()
+                if value:
+                    return value
+            return ""
+
+        project_id = str(cfg.get("project_id") or "").strip() or _scoped(
+            _SCOPE_PROJECT_ID_ENV
+        )
         if not project_id:
             result.error = (
                 "secrets.infisical.enabled is true but project_id is not set. "
-                "Add secrets.infisical.project_id to config.yaml."
+                "Set secrets.infisical.project_id in config.yaml or "
+                f"{_SCOPE_PROJECT_ID_ENV} in the managed .env."
             )
             result.error_kind = ErrorKind.NOT_CONFIGURED
             return result
 
-        env = str(cfg.get("env") or "prod").strip() or "prod"
-        path = str(cfg.get("path") or "/").strip() or "/"
+        env = str(cfg.get("env") or "").strip() or _scoped(_SCOPE_ENV_ENV) or "prod"
+        path = str(cfg.get("path") or "").strip() or _scoped(_SCOPE_PATH_ENV) or "/"
         api_url = str(cfg.get("api_url") or _DEFAULT_API_URL).strip()
 
         client_id_env = str(cfg.get("client_id_env") or _DEFAULT_CLIENT_ID_ENV)
@@ -431,6 +474,14 @@ class InfisicalSource(SecretSource):
         source_env = get_source_environment()
         client_id = source_env.get(client_id_env, "").strip()
         client_secret = source_env.get(client_secret_env, "").strip()
+
+        # El bootstrap puede vivir sólo en el .env del scope administrado, que el loader
+        # carga DESPUÉS de resolver este source. Se lee directo de ahí: es la única copia
+        # en la máquina y evita repetirla en el .env de cada perfil.
+        if not client_id or not client_secret:
+            managed = _managed_env()
+            client_id = client_id or managed.get(client_id_env, "").strip()
+            client_secret = client_secret or managed.get(client_secret_env, "").strip()
 
         if not client_id or not client_secret:
             result.error = (
