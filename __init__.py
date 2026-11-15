@@ -66,6 +66,13 @@ _DEFAULT_API_URL = "https://app.infisical.com"
 _DEFAULT_CLIENT_ID_ENV = "INFISICAL_CLIENT_ID"
 _DEFAULT_CLIENT_SECRET_ENV = "INFISICAL_CLIENT_SECRET"
 
+# El proyecto, el entorno y la ruta pueden vivir en el .env del scope administrado:
+# así cada perfil sólo declara `enabled: true` y todo lo demás se resuelve en un
+# único lugar (/etc/hermes), sin replicar identificadores en cada config.yaml.
+_SCOPE_PROJECT_ID_ENV = "INFISICAL_PROJECT_ID"
+_SCOPE_ENV_ENV = "INFISICAL_ENV"
+_SCOPE_PATH_ENV = "INFISICAL_PATH"
+
 
 def _managed_env() -> dict[str, str]:
     """El ``.env`` del scope administrado (``/etc/hermes/.env``), o ``{}`` si no hay.
@@ -429,17 +436,34 @@ class InfisicalSource(SecretSource):
         cfg = cfg if isinstance(cfg, dict) else {}
         result = FetchResult()
 
-        project_id = str(cfg.get("project_id") or "").strip()
+        # El scope administrado es la fuente única: un perfil puede declarar sólo
+        # `enabled: true` y el proyecto, el entorno y la ruta se leen de /etc/hermes.
+        managed: dict[str, str] | None = None
+
+        def _scoped(*keys: str) -> str:
+            nonlocal managed
+            if managed is None:
+                managed = _managed_env()
+            for key in keys:
+                value = str(managed.get(key, "") or "").strip()
+                if value:
+                    return value
+            return ""
+
+        project_id = str(cfg.get("project_id") or "").strip() or _scoped(
+            _SCOPE_PROJECT_ID_ENV
+        )
         if not project_id:
             result.error = (
                 "secrets.infisical.enabled is true but project_id is not set. "
-                "Add secrets.infisical.project_id to config.yaml."
+                "Set secrets.infisical.project_id in config.yaml or "
+                f"{_SCOPE_PROJECT_ID_ENV} in the managed .env."
             )
             result.error_kind = ErrorKind.NOT_CONFIGURED
             return result
 
-        env = str(cfg.get("env") or "prod").strip() or "prod"
-        path = str(cfg.get("path") or "/").strip() or "/"
+        env = str(cfg.get("env") or "").strip() or _scoped(_SCOPE_ENV_ENV) or "prod"
+        path = str(cfg.get("path") or "").strip() or _scoped(_SCOPE_PATH_ENV) or "/"
         api_url = str(cfg.get("api_url") or _DEFAULT_API_URL).strip()
 
         client_id_env = str(cfg.get("client_id_env") or _DEFAULT_CLIENT_ID_ENV)
