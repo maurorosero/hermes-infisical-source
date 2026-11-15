@@ -66,6 +66,25 @@ _DEFAULT_API_URL = "https://app.infisical.com"
 _DEFAULT_CLIENT_ID_ENV = "INFISICAL_CLIENT_ID"
 _DEFAULT_CLIENT_SECRET_ENV = "INFISICAL_CLIENT_SECRET"
 
+
+def _managed_env() -> dict[str, str]:
+    """El ``.env`` del scope administrado (``/etc/hermes/.env``), o ``{}`` si no hay.
+
+    Por qué se lee acá en vez de esperar al loader: ``load_hermes_dotenv`` resuelve las
+    fuentes externas **antes** de cargar el ``.env`` gestionado, así que el bootstrap que
+    vive ahí —la única copia en la máquina— todavía no está en el entorno cuando este
+    source se autentica. Medido: el proceso del perfil tenía
+    ``INFISICAL_CLIENT_SECRET`` pero el source ya había fallado. Sin esto, un perfil cuyo
+    ``.env`` no lleva el bootstrap queda sin secretos aunque el scope exista y se lea.
+    """
+    try:
+        from hermes_cli.managed_scope import load_managed_env
+
+        return dict(load_managed_env() or {})
+    except Exception:  # noqa: BLE001 - fail-open, igual que el propio loader
+        return {}
+
+
 # How long to wait for a single `infisical export` call.
 _EXPORT_TIMEOUT = 30
 
@@ -431,6 +450,14 @@ class InfisicalSource(SecretSource):
         source_env = get_source_environment()
         client_id = source_env.get(client_id_env, "").strip()
         client_secret = source_env.get(client_secret_env, "").strip()
+
+        # El bootstrap puede vivir sólo en el .env del scope administrado, que el loader
+        # carga DESPUÉS de resolver este source. Se lee directo de ahí: es la única copia
+        # en la máquina y evita repetirla en el .env de cada perfil.
+        if not client_id or not client_secret:
+            managed = _managed_env()
+            client_id = client_id or managed.get(client_id_env, "").strip()
+            client_secret = client_secret or managed.get(client_secret_env, "").strip()
 
         if not client_id or not client_secret:
             result.error = (
