@@ -124,13 +124,13 @@ sys.stdout.write("".join(lineas[:corte]).rstrip() + "\n")
 PY
 [ -s "$NUEVO" ] || die 4 "la derivación quedó vacía: revisá el __init__.py del repo"
 
-if [ -f "$DEST" ] && cmp -s "$NUEVO" "$DEST"; then
+if [ "$MODO" = revert ]; then
+  if [ -f "$DEST" ]; then rm -f "$DEST" && ok "source quitado del árbol"; else ok "no había source que quitar"; fi
+elif [ -f "$DEST" ] && cmp -s "$NUEVO" "$DEST"; then
   ok "ya está puesto y al día ($(wc -l < "$DEST") líneas)"
 elif [ "$MODO" = check ]; then
   [ -f "$DEST" ] && aviso "está desactualizado respecto del repo" || aviso "falta $DEST"
   FALLAS=$((FALLAS + 1))
-elif [ "$MODO" = revert ]; then
-  rm -f "$DEST" && ok "source quitado del árbol"
 else
   install -m 644 "$NUEVO" "$DEST"
   ok "escrito $(wc -l < "$DEST") líneas en $DEST"
@@ -139,20 +139,24 @@ echo
 
 # --- 3) La línea en la lista de fuentes incluidas -----------------------------
 echo "3 · el patch: la entrada en _BUILTIN_SOURCES"
-if grep -qF 'agent.secret_sources.infisical' "$REGISTRY"; then
-  ok "la entrada ya está"
-elif [ "$MODO" = check ]; then
-  aviso "falta la entrada (el source no se registraría)"
-  FALLAS=$((FALLAS + 1))
-elif [ "$MODO" = revert ]; then
-  "$PY" - "$REGISTRY" <<'PY'
+if [ "$MODO" = revert ]; then
+  if grep -qF 'agent.secret_sources.infisical' "$REGISTRY"; then
+    "$PY" - "$REGISTRY" <<'PY'
 import pathlib, sys
 p = pathlib.Path(sys.argv[1])
 t = p.read_text(encoding="utf-8")
 linea = '    ("agent.secret_sources.infisical", "InfisicalSource", "Infisical"),\n'
 p.write_text(t.replace(linea, ""), encoding="utf-8")
 PY
-  ok "entrada quitada"
+    ok "entrada quitada"
+  else
+    ok "no había entrada que quitar"
+  fi
+elif grep -qF 'agent.secret_sources.infisical' "$REGISTRY"; then
+  ok "la entrada ya está"
+elif [ "$MODO" = check ]; then
+  aviso "falta la entrada (el source no se registraría)"
+  FALLAS=$((FALLAS + 1))
 else
   "$PY" - "$REGISTRY" <<'PY'
 import pathlib, sys
@@ -171,8 +175,11 @@ fi
 echo
 
 # --- 4) Verificación: que de verdad quede registrado --------------------------
+# En modo revert se acaba de quitar a propósito, así que no hay nada que verificar.
 echo "4 · verificación"
-if $PY - "$TREE" <<'PY'
+if [ "$MODO" = revert ]; then
+  ok "el patch ya no está; el plugin sigue instalado"
+elif $PY - "$TREE" <<'PY'
 import sys
 sys.path.insert(0, sys.argv[1])
 from agent.secret_sources.registry import list_sources, _SOURCE_ORIGINS
