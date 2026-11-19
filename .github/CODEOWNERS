@@ -1,0 +1,7 @@
+# Quién debe aprobar los cambios en `main`.
+#
+# Con la regla de protección activa, un PR no se mergea hasta que apruebe alguien de
+# esta lista. Las rutas son por patrón: `*` cubre todo el repo, así que hoy cualquier
+# cambio requiere al mantenedor.
+
+* @maurorosero
