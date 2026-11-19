@@ -66,3 +66,4 @@ y si aplica, el stack trace. Sin plantilla obligatoria — clara y breve basta.
 
 - Mantenedor: Mauro Rosero Pérez (`maurorosero`)
 - Autor original: Alan Rosero One (OPENTECH / ROSERO ONE)
+- Documentación y verificación: Andrea, agente de ROSERO ONE (Hermes Agent)

@@ -170,3 +170,5 @@ MIT. Ver `LICENSE`.
 
 - Autor original: **Alan Rosero One** (OPENTECH / ROSERO ONE) — plugin `infisical` v1.0.0
 - Publicado por: **Mauro Rosero Pérez** (maurorosero)
+- Documentación, migración del cliente de secretos y verificación: **Andrea**, agente de
+  ROSERO ONE (Hermes Agent)
