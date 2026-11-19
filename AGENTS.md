@@ -4,7 +4,7 @@ Instrucciones de proyecto para AGENTES DE IA (Hermes, Claude Code, Codex, OpenCo
 
 ## Qué es este proyecto
 
-Plugin de **secret source** para Hermes Agent que resuelve credenciales de proveedor desde una carpeta de Infisical al arranque (Universal Auth, bulk folder, fail-open). Instalable por `hermes plugins install maurorosero/hermes-infisical-source`.
+Infisical para Hermes Agent: **instala `InfisicalSource` en el core** (bulk folder, Universal Auth, fail-open) y aporta los comandos `hermes infisical setup|status`. La fuente corre desde el árbol de Hermes, no desde el plugin, porque el arranque valida credenciales antes de cargar plugins.
 
 Es un **proyecto chico, público, de un solo mantenedor (maurorosero)** — sin GitFlow, sin develop, sin release branches.
 
