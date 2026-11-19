@@ -1,6 +1,11 @@
 # hermes-infisical-source
 
-Plugin de **secret source** para [Hermes Agent](https://hermes-agent.nousresearch.com/): resuelve credenciales de proveedor desde una carpeta de proyecto de Infisical al arranque, vía **Universal Auth** (Client ID + Client Secret). Es un *bulk source*: inyecta la carpeta completa configurada (p. ej. `/ALAN-AI`) al entorno del gateway, igual que el Bitwarden BSM del core.
+Infisical como **fuente de secretos del core** de [Hermes Agent](https://hermes-agent.nousresearch.com/), más los comandos para configurarla. El repo hace dos cosas distintas, y conviene no confundirlas:
+
+- **`InfisicalSource`** — la fuente. Resuelve la carpeta del proyecto por **Universal Auth** (Client ID + Client Secret) y la inyecta completa al entorno del gateway al arrancar, igual que el Bitwarden BSM del core. Es un *bulk source*.
+- **`hermes infisical setup | status`** — los comandos para escribir la configuración y verificarla.
+
+**La fuente no corre desde el plugin.** `install.sh` la escribe en el árbol de Hermes (`agent/secret_sources/infisical.py`) y la registra en `_BUILTIN_SOURCES`. El motivo es el orden de arranque: Hermes valida las credenciales del modelo **antes** de cargar plugins, así que un plugin llega tarde. En runtime, lo que aporta el plugin son los comandos.
 
 > **Aporte a la comunidad Hermes.** Publicado como repo standalone (la doc oficial del harness indica que Infisical no va in-tree: *"Everything else — Infisical, Proton Pass, HashiCorp Vault… — belongs in plugin repos"*).
 
@@ -52,7 +57,10 @@ hermes plugins install maurorosero/hermes-infisical-source
 
 > Portable packages se instalan deshabilitados — habilítalo después con `hermes plugins enable infisical`.
 
-Así funciona como cualquier plugin: resuelve los secretos para el agente y para los scripts, pero el `doctor` no los verá, por la razón de arriba.
+Sin el patch, el plugin **no resuelve ningún secreto**: su `register()` sólo registra los comandos
+`hermes infisical setup | status`, no la fuente. Sirve para configurar y verificar, no para inyectar.
+Un perfil con `secrets.infisical.enabled: true` y sin el patch arranca sin credenciales, y el
+síntoma no habla de secretos: el proveedor del modelo se queda sin llave.
 
 ### Manual (cualquier perfil/agente: Andrea, Alan, etc.)
 

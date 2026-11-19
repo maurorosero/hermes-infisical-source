@@ -1,5 +1,5 @@
 name: infisical
 version: 1.0.0
-description: "Infisical secret source — pulls provider credentials from an Infisical project folder at startup via Universal Auth (Client ID + Client Secret). Bulk source: injects the whole configured folder (e.g. /ALAN-AI)."
+description: "Infisical para Hermes: instala InfisicalSource como fuente del core (bulk, Universal Auth) y aporta `hermes infisical setup|status`. La fuente se ejecuta desde el arbol de Hermes, no desde el plugin."
 author: Alan Rosero One
 kind: backend
