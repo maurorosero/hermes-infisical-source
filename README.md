@@ -1,6 +1,11 @@
 # hermes-infisical-source
 
-Plugin de **secret source** para [Hermes Agent](https://hermes-agent.nousresearch.com/): resuelve credenciales de proveedor desde una carpeta de proyecto de Infisical al arranque, vía **Universal Auth** (Client ID + Client Secret). Es un *bulk source*: inyecta la carpeta completa configurada (p. ej. `/ALAN-AI`) al entorno del gateway, igual que el Bitwarden BSM del core.
+Infisical como **fuente de secretos del core** de [Hermes Agent](https://hermes-agent.nousresearch.com/), más los comandos para configurarla. El repo hace dos cosas distintas, y conviene no confundirlas:
+
+- **`InfisicalSource`** — la fuente. Resuelve la carpeta del proyecto por **Universal Auth** (Client ID + Client Secret) y la inyecta completa al entorno del gateway al arrancar, igual que el Bitwarden BSM del core. Es un *bulk source*.
+- **`hermes infisical setup | status`** — los comandos para escribir la configuración y verificarla.
+
+**La fuente no corre desde el plugin.** `install.sh` la escribe en el árbol de Hermes (`agent/secret_sources/infisical.py`) y la registra en `_BUILTIN_SOURCES`. El motivo es el orden de arranque: Hermes valida las credenciales del modelo **antes** de cargar plugins, así que un plugin llega tarde. En runtime, lo que aporta el plugin son los comandos.
 
 > **Aporte a la comunidad Hermes.** Publicado como repo standalone (la doc oficial del harness indica que Infisical no va in-tree: *"Everything else — Infisical, Proton Pass, HashiCorp Vault… — belongs in plugin repos"*).
 
@@ -52,9 +57,12 @@ hermes plugins install maurorosero/hermes-infisical-source
 
 > Portable packages se instalan deshabilitados — habilítalo después con `hermes plugins enable infisical`.
 
-Así funciona como cualquier plugin: resuelve los secretos para el agente y para los scripts, pero el `doctor` no los verá, por la razón de arriba.
+Sin el patch, el plugin **no resuelve ningún secreto**: su `register()` sólo registra los comandos
+`hermes infisical setup | status`, no la fuente. Sirve para configurar y verificar, no para inyectar.
+Un perfil con `secrets.infisical.enabled: true` y sin el patch arranca sin credenciales, y el
+síntoma no habla de secretos: el proveedor del modelo se queda sin llave.
 
-### Manual (cualquier perfil/agente: Andrea, Alan, etc.)
+### Manual (cualquier perfil u otro agente)
 
 ```bash
 # 1. Clona el repo (o copia los dos archivos) dentro del perfil:
@@ -74,29 +82,46 @@ INFISICAL_CLIENT_SECRET=... # bootstrap — NUNCA en el repo
 
 ## Configuración — `config.yaml`
 
-```yaml
-plugins:
-  enabled:
-    - infisical
+Todo vive bajo `secrets.infisical` del perfil. Éstas son las claves que el source acepta,
+con su valor por defecto y **de dónde sale cada dato**:
 
+| Clave | Default | Qué es | De dónde sale el valor |
+|---|---|---|---|
+| `enabled` | `false` | activa la fuente | — |
+| `project_id` | `""` | proyecto de Infisical | *Project Settings → Project ID* |
+| `env` | `prod` | entorno del proyecto | *Environments* del proyecto (`prod`, `dev`, …) |
+| `path` | `/` | carpeta que se inyecta, **completa** | la ruta de la carpeta en *Secrets*, con barra inicial |
+| `api_url` | `https://app.infisical.com` | base de la API | sólo si es self-hosted |
+| `client_id_env` | `INFISICAL_CLIENT_ID` | **nombre** de la variable que lleva el Client ID | lo elegís vos |
+| `client_secret_env` | `INFISICAL_CLIENT_SECRET` | **nombre** de la variable que lleva el Client Secret | lo elegís vos |
+| `binary_path` | `""` (PATH) | fija el binario `infisical` | sólo si hay varias versiones instaladas |
+| `cache_ttl_seconds` | `300` | TTL del cache en disco y memoria; `0` lo apaga | — |
+| `override_existing` | `true` | los valores resueltos pisan los del `.env` y del shell | — |
+
+Dos cosas que confunden, y conviene decirlas:
+
+- **`client_id_env` no guarda el secreto: guarda el NOMBRE de la variable** que lo contiene.
+  El valor va en el `.env` del perfil —o en el scope administrador—, nunca en el `config.yaml`.
+- **La identidad se crea en Infisical**, no acá: *Access Control → Machine Identities →
+  Universal Auth*. De ahí salen el Client ID y el Client Secret.
+
+Ejemplo mínimo, con marcadores y sin datos de ninguna instalación:
+
+```yaml
 secrets:
   infisical:
     enabled: true
+    project_id: "<uuid-del-proyecto>"
     env: prod
-    folder: /ALAN-AI
-    project_id: 2465eb3c-841e-400b-947d-991ecfdc67bf
-    timeout: 30
-    fail_open: true        # los fallos NO bloquean el arranque
+    path: /<carpeta-del-proyecto>
 ```
 
-| Clave | Descripción |
-|---|---|
-| `enabled` | Activa el source |
-| `project_id` | ID del proyecto Infisical |
-| `folder` | Carpeta a inyectar (bulk) |
-| `env` | Entorno (prod/dev/staging) |
-| `timeout` | Timeout del fetch (s) |
-| `fail_open` | Si falla, arrancar sin secretos en lugar de bloquear |
+Lo mismo por CLI, que es lo que hace `install.sh` al terminar:
+
+```bash
+hermes infisical setup --project-id "<uuid-del-proyecto>" --env prod --path "/<carpeta>"
+hermes infisical status
+```
 
 ## Verificación
 

@@ -2,7 +2,7 @@
 
 Pulls provider credentials from an Infisical project folder at process
 startup using Universal Auth (Client ID + Client Secret). This is a
-**bulk** source: it injects the whole configured folder (e.g. ``/ALAN-AI``)
+**bulk** source: it injects the whole configured folder (e.g. ``/PROJECT-SLUG``)
 implicitly, like Bitwarden BSM.
 
 Design
@@ -403,7 +403,7 @@ class InfisicalSource(SecretSource):
                 "default": "prod",
             },
             "path": {
-                "description": "Folder path to export (e.g. /ALAN-AI)",
+                "description": "Folder path to export (e.g. /PROJECT-SLUG)",
                 "default": "/",
             },
             "api_url": {

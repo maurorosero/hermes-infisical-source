@@ -189,7 +189,7 @@ def register_cli(subparser: argparse.ArgumentParser) -> None:
     p_setup = subs.add_parser("setup", help="Configure secrets.infisical and test the Universal Auth login")
     p_setup.add_argument("--project-id", help="Infisical project ID (hex string)")
     p_setup.add_argument("--env", default=None, help="Environment (prod/dev/...); default prod")
-    p_setup.add_argument("--path", default=None, help="Folder to export (e.g. /ALAN-AI); default /")
+    p_setup.add_argument("--path", default=None, help="Folder to export (e.g. /PROJECT-SLUG); default /")
     p_setup.add_argument("--api-url", default=None, help="Infisical API base URL (default https://app.infisical.com)")
     p_setup.add_argument("--client-id-env", default=None, help="Env var holding the Client ID")
     p_setup.add_argument("--client-secret-env", default=None, help="Env var holding the Client Secret")

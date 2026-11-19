@@ -1,4 +1,7 @@
-# Configuración de ejemplo — copiar al config.yaml del perfil
+# Configuración de ejemplo — copiar al config.yaml del perfil.
+#
+# No trae valores de ninguna instalación a propósito: cada clave se completa con
+# datos que salen de tu proyecto de Infisical. Ver "Configuración" en el README.
 
 plugins:
   enabled:
@@ -7,8 +10,18 @@ plugins:
 secrets:
   infisical:
     enabled: true
+
+    # Project Settings -> Project ID
+    project_id: "<uuid-del-proyecto>"
+
+    # Environments del proyecto: prod, dev, staging...
     env: prod
-    folder: /ALAN-AI
-    project_id: 2465eb3c-841e-400b-947d-991ecfdc67bf
-    timeout: 30
-    fail_open: true
+
+    # Carpeta de Secrets que se inyecta COMPLETA (bulk), con barra inicial
+    path: /<carpeta-del-proyecto>
+
+    # Opcionales: sólo si hacen falta
+    # api_url: https://app.infisical.com    # self-hosted
+    # binary_path: ""                        # pin del binario `infisical`
+    # cache_ttl_seconds: 300                 # 0 apaga el cache
+    # override_existing: true                # pisa .env y shell
