@@ -1,4 +1,4 @@
-# Integrar el plugin en cualquier perfil de Hermes (Andrea, Alan, otros)
+# Integrar el plugin en cualquier perfil de Hermes
 
 ## Vía instalador oficial (recomendada)
 
@@ -24,6 +24,6 @@ Donde `$HERMES_HOME` = `~/.hermes/profiles/<perfil>/`.
 
 ## Notas de integración
 
-- El plugin es **bulk**: inyecta TODA la carpeta configurada (p. ej. `/ALAN-AI`) al entorno — los perfiles solo necesitan que su proyecto Infisical tenga la carpeta.
+- El plugin es **bulk**: inyecta TODA la carpeta configurada (p. ej. `/PROJECT-SLUG`) al entorno — los perfiles solo necesitan que su proyecto Infisical tenga la carpeta.
 - Fail-open: si Infisical no responde, el perfil arranca sin secretos (no se bloquea el gateway).
 - Compatibilidad: usa `agent.secret_sources._cache` (interno del core) — mantener el harness actualizado.

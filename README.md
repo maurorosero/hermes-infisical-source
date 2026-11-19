@@ -62,7 +62,7 @@ Sin el patch, el plugin **no resuelve ningún secreto**: su `register()` sólo r
 Un perfil con `secrets.infisical.enabled: true` y sin el patch arranca sin credenciales, y el
 síntoma no habla de secretos: el proveedor del modelo se queda sin llave.
 
-### Manual (cualquier perfil/agente: Andrea, Alan, etc.)
+### Manual (cualquier perfil u otro agente)
 
 ```bash
 # 1. Clona el repo (o copia los dos archivos) dentro del perfil:
@@ -91,7 +91,7 @@ secrets:
   infisical:
     enabled: true
     env: prod
-    folder: /ALAN-AI
+    folder: /PROJECT-SLUG
     project_id: 2465eb3c-841e-400b-947d-991ecfdc67bf
     timeout: 30
     fail_open: true        # los fallos NO bloquean el arranque

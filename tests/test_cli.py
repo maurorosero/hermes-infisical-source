@@ -95,14 +95,14 @@ def test_setup_writes_config_even_when_login_fails(cli, tmp_path, monkeypatch):
     monkeypatch.setenv("INFISICAL_CLIENT_SECRET", "csec-x")
     monkeypatch.setattr(cli, "_test_login", lambda *a, **k: (False, "HTTP 401"))
     args = argparse.Namespace(
-        project_id="e9db622a", env="prod", path="/ANDREA-AI",
+        project_id="e9db622a", env="prod", path="/PROJECT-SLUG",
         api_url="https://app.infisical.com",
         client_id_env="INFISICAL_CLIENT_ID", client_secret_env="INFISICAL_CLIENT_SECRET",
         dry_run=False,
     )
     assert cli.cmd_setup(args) == 0
     written = (tmp_path / "config.yaml").read_text(encoding="utf-8")
-    assert "/ANDREA-AI" in written, "path must be persisted even on login failure"
+    assert "/PROJECT-SLUG" in written, "path must be persisted even on login failure"
     assert "e9db622a" in written
 
 
@@ -130,7 +130,7 @@ def test_setup_dry_run_writes_nothing_on_login_ok(cli, tmp_path, monkeypatch):
     monkeypatch.setenv("INFISICAL_CLIENT_SECRET", "csec-456")
     monkeypatch.setattr(cli, "_test_login", lambda *a, **k: (True, "OK"))
     args = argparse.Namespace(
-        project_id="p1", env="prod", path="/ALAN-AI", api_url="https://app.infisical.com",
+        project_id="p1", env="prod", path="/PROJECT-SLUG", api_url="https://app.infisical.com",
         client_id_env="INFISICAL_CLIENT_ID", client_secret_env="INFISICAL_CLIENT_SECRET",
         dry_run=True,
     )
